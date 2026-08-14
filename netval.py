@@ -1,30 +1,34 @@
 # simple network configuration validator 
-# V2 --> Enhancement: reading config files and error reporting.
+# V3 --> Enhancement: loading baseline from YAML file and matching.
 
 
+
+import yaml
+import socket
 import re
 
-def check_sshd(path='/etc/ssh/sshd_config'):
+def load_baseline(path='baseline.yaml'):
     with open(path) as f:
-        content = f.read()
-    issues = []
-    if re.search(r'^PermitRootLogin\s+yes', content, re.MULTILINE):
-        issues.append('PermitRootLogin is enabled')
-    if not re.search(r'^PasswordAuthentication\s+no', content, re.MULTILINE):
-        issues.append('PasswordAuthentication not disabled')
-    return issues
+        return yaml.safe_load(f)
 
-def check_nginx(path='/etc/nginx/nginx.conf'):
-    with open(path) as f:
-        content = f.read()
-    issues = []
-    if 'ssl_protocols' not in content:
-        issues.append('ssl_protocols not defined')
-    elif 'TLSv1.2' not in content:
-        issues.append('TLSv1.2 not enforced')
-    return issues
+baseline = load_baseline()
+# e.g.: {'ports': [22, 80, 443], 'ssh': {'PermitRootLogin': 'no'}, 'nginx': {'ssl_protocols': 'TLSv1.2'}}
+for port in range(1, 1025):
+    s = socket.socket(); s.settimeout(0.2)
+    if s.connect_ex(('127.0.0.1', port)) == 0 and port not in baseline['ports']:
+        print(f"Non-compliant port: {port}")
+    s.close()
 
-for issue in check_sshd():
-    print(f"[FAIL] SSH: {issue}")
-for issue in check_nginx():
-    print(f"[FAIL] Nginx: {issue}")
+# Check SSH config
+with open('/etc/ssh/sshd_config') as f:
+    content = f.read()
+for key, val in baseline.get('ssh', {}).items():
+    if f'{key} {val}' not in content:
+        print(f"SSH config: {key} should be {val}")
+
+# Check Nginx config
+with open('/etc/nginx/nginx.conf') as f:
+    content = f.read()
+if 'TLSv1.2' in baseline.get('nginx', {}).get('ssl_protocols', ''):
+    if 'ssl_protocols TLSv1.2' not in content:
+        print("Nginx: TLSv1.2 not enabled")
