@@ -2,41 +2,47 @@
 
 ## 🔍 Overview
 
-**Simple Network Configuration Validator** is a lightweight Python security auditing tool that checks your system's network services and configurations against security best practices.
+**Simple Network Configuration Validator** is a lightweight Python security auditing tool that validates your system's network services and configurations against a customizable security baseline.
 
-This is **Version 1 (V1)** of the tool, featuring:
+This is **Version 3 (V3)** of the tool, featuring:
 
-- **Unauthorized port scanning** - Detects open ports not in the allowed list
-- **Configuration file validation** - Reads and analyzes service config files for security misconfigurations
+- **YAML-based baseline configuration** - Define your security standards in a simple YAML file
+- **Unauthorized port scanning** - Detects open ports not in the baseline
+- **Configuration file validation** - Reads and analyzes service config files against baseline rules
+- **Centralized policy management** - All security rules in one place
 
 ---
 
 ## 📋 Features
 
-### 1. Port Scanning
+### 1. YAML Baseline Configuration
+
+- Define allowed ports in a YAML file
+- Specify expected SSH configuration parameters
+- Set Nginx security requirements
+- Easily extendable for additional services
+- Human-readable policy format
+
+### 2. Port Scanning
 
 - Scans ports from **1 to 1024** (well-known ports)
-- Alerts on any open port not in the allowed set
-- Predefined allowed ports:
-  - `22`  (SSH)
-  - `80`  (HTTP)
-  - `443` (HTTPS)
+- Alerts on any open port not in the baseline
 - Fast scanning with a timeout of `0.2` seconds per port
 
-### 2. Configuration Validation
+### 3. Configuration Validation
 
 - **SSH** (`/etc/ssh/sshd_config`):
-  - Detects if `PermitRootLogin` is enabled
-  - Checks if `PasswordAuthentication` is properly disabled
+  - Validates parameters like `PermitRootLogin`
+  - Checks any custom SSH configuration keys
 - **Nginx** (`/etc/nginx/nginx.conf`):
-  - Verifies `ssl_protocols` is defined
-  - Ensures `TLSv1.2` is enforced for secure connections
-- Clear error reporting with actionable insights
+  - Verifies `ssl_protocols` settings
+  - Ensures TLS configuration matches baseline
 
-### 3. General
+### 4. General
 
-- Lightweight and dependency-free (uses only Python standard library)
-- Simple, readable output format
+- Lightweight with minimal dependencies (PyYAML only)
+- Clear, actionable output
+- Easy to customize and extend
 
 ---
 
@@ -45,18 +51,34 @@ This is **Version 1 (V1)** of the tool, featuring:
 ### Prerequisites
 
 - Python 3.x installed on your system
-- Root/sudo access for reading configuration files (if needed)
+- PyYAML library:
+
+```bash
+pip install pyyaml
+```
+
+Root/sudo access for reading configuration files (if needed)
+
+### Installation
+
+Clone or download the script:
+
+```bash
+git clone https://github.com/adelkamell/simple-network-validator.git
+cd simple-network-validator
+```
+
+### Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+Create or edit your baseline.yaml file (see example below).
 
 ### Usage
 
-1. Clone or download the script.
-2. Run the script from your terminal:
-
-```bash
-python network_validator.py
-```
-
-Note: For reading system configuration files, you may need to run with appropriate permissions:
+Run the script with appropriate permissions:
 
 ```bash
 sudo python network_validator.py
@@ -65,39 +87,100 @@ sudo python network_validator.py
 ### Example Output
 
 ```text
-[ALERT] Unauthorized port 8080 open
-[ALERT] Unauthorized port 3306 open
-[FAIL] SSH: PermitRootLogin is enabled
-[FAIL] SSH: PasswordAuthentication not disabled
-[FAIL] Nginx: TLSv1.2 not enforced
+Non-compliant port: 3306
+Non-compliant port: 8080
+SSH config: PermitRootLogin should be no
+Nginx: TLSv1.2 not enabled
 ```
 
-### 🛠️ Customization
+## 📄 Baseline Configuration (baseline.yaml)
 
-Modify Allowed Ports
-Update the ALLOWED set to include or exclude ports based on your security policy:
+The baseline.yaml file defines your security standards:
 
-```python
-ALLOWED = {22, 80, 443, 53, 8080}  # Add DNS and alternative HTTP ports
+```yaml
+ports:
+  - 22
+  - 80
+  - 443
+
+ssh:
+  PermitRootLogin: no
+  PasswordAuthentication: no
+  # Add any SSH configuration key-value pairs
+
+nginx:
+  ssl_protocols: TLSv1.2
+  # Add any Nginx configuration patterns
 ```
 
-### Add New Service Checks
+### Customizing the Baseline
 
-Extend the tool by creating new validation functions:
+Add or remove ports based on your security policy:
 
-```python
-def check_apache(path='/etc/apache2/apache2.conf'):
-    # Add your validation logic here
-    return issues
+```yaml
+ports:
+  - 22      # SSH
+  - 80      # HTTP
+  - 443     # HTTPS
+  - 53      # DNS (optional)
+  - 8443    # Alternative HTTPS
 ```
 
-### Custom Configuration Paths
+Add new SSH parameters to check:
 
-Pass custom paths to check functions:
+```yaml
+ssh:
+  PermitRootLogin: no
+  PasswordAuthentication: no
+  X11Forwarding: no
+  ClientAliveInterval: 300
+```
+
+Add more Nginx security requirements:
+
+```yaml
+nginx:
+  ssl_protocols: TLSv1.2
+  ssl_ciphers: HIGH:!aNULL:!MD5
+  add_header: "X-Frame-Options SAMEORIGIN"
+```
+
+## 🛠️ Extending the Tool
+
+Adding New Service Checks
+Create new validation functions in the script:
 
 ```python
-for issue in check_sshd(path='/custom/path/sshd_config'):
-    print(f"[FAIL] SSH: {issue}")
+def check_mysql(path='/etc/mysql/mysql.conf.d/mysqld.cnf'):
+    with open(path) as f:
+        content = f.read()
+    baseline = load_baseline()
+    for key, val in baseline.get('mysql', {}).items():
+        if f'{key} {val}' not in content:
+            print(f"MySQL: {key} should be {val}")
+```
+
+Then add to your baseline.yaml:
+
+```yaml
+mysql:
+  bind-address: 127.0.0.1
+  max_connections: 100
+  skip-networking: 0
+```
+
+### Custom Validation Logic
+
+For complex validations, you can add pattern matching:
+
+```python
+import re
+
+def check_firewall(path='/etc/ufw/ufw.conf'):
+    with open(path) as f:
+        content = f.read()
+    if not re.search(r'ENABLED=yes', content):
+        print("Firewall not enabled")
 ```
 
 ### 📁 Project Structure
@@ -105,9 +188,35 @@ for issue in check_sshd(path='/custom/path/sshd_config'):
 ```text
 simple-network-validator/
 ├── network_validator.py   # Main script
+├── baseline.yaml          # Security baseline configuration
+├── requirements.txt       # Python dependencies
 ├── README.md              # Documentation
 └── LICENSE                # License file
 ```
+
+### 📦 Dependencies
+
+- Python 3.x - Core language
+
+- PyYAML - YAML file parsing
+
+- All other modules are from Python standard library
+
+- Install Dependencies
+
+```bash
+pip install pyyaml
+```
+
+Or create a requirements.txt:
+
+```text
+pyyaml>=6.0
+```
+
+### ⚠️ Disclaimer
+
+This tool is intended for educational and administrative use only. Use it only on systems you own or have explicit permission to audit. Misuse of this tool may violate applicable laws and regulations.
 
 ### 🤝 Contributing
 
@@ -123,20 +232,56 @@ Push to the branch (git push origin feature/AmazingFeature)
 
 Open a Pull Request
 
+### Contribution Ideas
+
+Add support for more configuration files
+
+Implement additional security checks
+
+Improve error handling and logging
+
+Create a web-based dashboard
+
+Add automated testing
+
+Write comprehensive documentation
+
+### 🐛 Reporting Issues
+
+Found a bug or have a suggestion? Please open an issue on GitHub with:
+
+Description of the problem
+
+Steps to reproduce
+
+Expected vs actual behavior
+
+Your environment (OS, Python version, etc.)
+
 ### 👤 Author
 
-Adel Kamell
+- Adel Kamell
 
-GitHub: @adelkamell
+- GitHub: @adelkamell
 
 ### 🙏 Acknowledgments
 
-Inspired by best practices from:
+Inspired by industry best practices:
 
-- [CIS Benchmarks](https://www.cisecurity.org/benchmarks/)
+[CIS Benchmarks](https://www.cisecurity.org/benchmarks/)
 
-- [SSH Hardening Guide](https://www.ssh.com/ssh/hardening)
+[SSH Hardening Guide](https://www.ssh.com/ssh/hardening)
 
-- [Nginx Security Guide](https://nginx.org/en/docs/http/configuring_https_servers.html)
+[Nginx Security Guide](https://nginx.org/en/docs/http/configuring_https_servers.html)
+
+[YAML Specification](https://yaml.org/spec/)
+
+### 📚 Resources
+
+[PyYAML Documentation](https://pyyaml.org/wiki/PyYAMLDocumentation)
+
+[Python Socket Programming](https://docs.python.org/3/library/socket.html)
+
+[Security Best Practices](https://www.owasp.org/)
 
 ### Made with ❤️ for the security community
