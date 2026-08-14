@@ -2,13 +2,18 @@
 
 ## 🔍 Overview
 
-**Simple Network Configuration Validator** is a lightweight Python script designed to scan local open ports and alert you to any unauthorized services running on your system.
+**Simple Network Configuration Validator** is a lightweight Python security auditing tool that checks your system's network services and configurations against security best practices.
 
-This is **Version 1 (V1)** of the tool, focused on detecting open ports that are not part of a predefined allowed list.
+This is **Version 1 (V1)** of the tool, featuring:
+
+- **Unauthorized port scanning** - Detects open ports not in the allowed list
+- **Configuration file validation** - Reads and analyzes service config files for security misconfigurations
 
 ---
 
 ## 📋 Features
+
+### 1. Port Scanning
 
 - Scans ports from **1 to 1024** (well-known ports)
 - Alerts on any open port not in the allowed set
@@ -17,7 +22,21 @@ This is **Version 1 (V1)** of the tool, focused on detecting open ports that are
   - `80`  (HTTP)
   - `443` (HTTPS)
 - Fast scanning with a timeout of `0.2` seconds per port
+
+### 2. Configuration Validation
+
+- **SSH** (`/etc/ssh/sshd_config`):
+  - Detects if `PermitRootLogin` is enabled
+  - Checks if `PasswordAuthentication` is properly disabled
+- **Nginx** (`/etc/nginx/nginx.conf`):
+  - Verifies `ssl_protocols` is defined
+  - Ensures `TLSv1.2` is enforced for secure connections
+- Clear error reporting with actionable insights
+
+### 3. General
+
 - Lightweight and dependency-free (uses only Python standard library)
+- Simple, readable output format
 
 ---
 
@@ -26,7 +45,7 @@ This is **Version 1 (V1)** of the tool, focused on detecting open ports that are
 ### Prerequisites
 
 - Python 3.x installed on your system
-- No additional libraries required
+- Root/sudo access for reading configuration files (if needed)
 
 ### Usage
 
@@ -34,7 +53,13 @@ This is **Version 1 (V1)** of the tool, focused on detecting open ports that are
 2. Run the script from your terminal:
 
 ```bash
-python port_scanner.py
+python network_validator.py
+```
+
+Note: For reading system configuration files, you may need to run with appropriate permissions:
+
+```bash
+sudo python network_validator.py
 ```
 
 ### Example Output
@@ -42,14 +67,46 @@ python port_scanner.py
 ```text
 [ALERT] Unauthorized port 8080 open
 [ALERT] Unauthorized port 3306 open
+[FAIL] SSH: PermitRootLogin is enabled
+[FAIL] SSH: PasswordAuthentication not disabled
+[FAIL] Nginx: TLSv1.2 not enforced
 ```
 
 ### 🛠️ Customization
 
-You can modify the ALLOWED set to include or exclude ports based on your security policy:
+Modify Allowed Ports
+Update the ALLOWED set to include or exclude ports based on your security policy:
 
 ```python
-ALLOWED = {22, 80, 443, 53}  # Add DNS port as allowed
+ALLOWED = {22, 80, 443, 53, 8080}  # Add DNS and alternative HTTP ports
+```
+
+### Add New Service Checks
+
+Extend the tool by creating new validation functions:
+
+```python
+def check_apache(path='/etc/apache2/apache2.conf'):
+    # Add your validation logic here
+    return issues
+```
+
+### Custom Configuration Paths
+
+Pass custom paths to check functions:
+
+```python
+for issue in check_sshd(path='/custom/path/sshd_config'):
+    print(f"[FAIL] SSH: {issue}")
+```
+
+### 📁 Project Structure
+
+```text
+simple-network-validator/
+├── network_validator.py   # Main script
+├── README.md              # Documentation
+└── LICENSE                # License file
 ```
 
 ### 🤝 Contributing
@@ -71,5 +128,15 @@ Open a Pull Request
 Adel Kamell
 
 GitHub: @adelkamell
+
+### 🙏 Acknowledgments
+
+Inspired by best practices from:
+
+- [CIS Benchmarks](https://www.cisecurity.org/benchmarks/)
+
+- [SSH Hardening Guide](https://www.ssh.com/ssh/hardening)
+
+- [Nginx Security Guide](https://nginx.org/en/docs/http/configuring_https_servers.html)
 
 ### Made with ❤️ for the security community
