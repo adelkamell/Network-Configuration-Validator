@@ -1,5 +1,5 @@
 # simple network configuration validator 
-# V1 --> Enhancement: reading config files and error reporting.
+# V2 --> Enhancement: reading config files and error reporting.
 
 
 import re
